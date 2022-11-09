@@ -51,9 +51,17 @@ class MiamiSpider(scrapy.Spider):
         # self.logger.info(dfs)
         for x,df in enumerate(dfs):
             y = df.to_dict('index')
-
-       
+        
         print(y)
+        practice_data= {
+            'hello':'world'
+        }
+
+        # yield FormRequest(url='http://127.0.0.1:8000/available-cases', formdata=practice_data,callback=self.django_auth,headers=headers)
+
+
+    # def django_auth(response):
+    #     open_in_browser(response)
         # self.logger.info(y)
         # thead = response.xpath("//a[@class='coc-sort-text']/text()").getall()
         # self.logger.info(thead)
