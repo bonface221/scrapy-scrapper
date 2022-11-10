@@ -3,7 +3,8 @@ from scrapy.utils.response import open_in_browser
 from scrapy import FormRequest
 from bs4 import BeautifulSoup as bs
 import pandas as pd
-
+import requests
+import json
 
 class MiamiSpider(scrapy.Spider):
     name = 'miami'
@@ -22,7 +23,7 @@ class MiamiSpider(scrapy.Spider):
     def step2(self, response):
         # open_in_browser(response)
         official_records_url = 'https://onlineservices.miami-dadeclerk.com/officialrecords/StandardSearch.aspx'
-        return scrapy.Request(official_records_url, method='POST', callback=self.step3)
+        return scrapy.Request(official_records_url, method='GET', callback=self.step3)
 
     def step3(self, response):
         official_record_payload = {
@@ -48,24 +49,29 @@ class MiamiSpider(scrapy.Spider):
     def step4(self, response):
         # open_in_browser(response)
         dfs = pd.read_html(response.text)
-        # self.logger.info(dfs)
-        for x,df in enumerate(dfs):
-            y = df.to_dict('index')
+        # self.logger.info(dfs[0])
+        for x, df in enumerate(dfs):
+            # y = df.to_dict('tight')
+            y = df.T.to_dict().values()
+
+        my_data = list(y)
+
+        for i in my_data:
+            i['Blk'] = str(i['Blk'])
+            
         
-        print(y)
-        practice_data= {
-            'hello':'world'
-        }
+        trial= {"name":"bonface","School":"Moringa school"}
 
-        # yield FormRequest(url='http://127.0.0.1:8000/available-cases', formdata=practice_data,callback=self.django_auth,headers=headers)
+        print(my_data)
+
+        yield requests.post('http://127.0.0.1:8000/available-cases',json=trial)
 
 
-    # def django_auth(response):
+    # def django_auth(self,response):
     #     open_in_browser(response)
-        # self.logger.info(y)
-        # thead = response.xpath("//a[@class='coc-sort-text']/text()").getall()
-        # self.logger.info(thead)
 
+    #     yield FormRequest(response,'http://127.0.0.1:8000/available-cases',)
+        
         # tbody = response.xpath('')
         
         
