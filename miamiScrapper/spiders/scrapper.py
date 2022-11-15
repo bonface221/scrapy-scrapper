@@ -6,6 +6,7 @@ import pandas as pd
 import requests
 import json
 from datetime import date
+from math import isnan,nan
 
 
 class MiamiSpider(scrapy.Spider):
@@ -43,13 +44,16 @@ class MiamiSpider(scrapy.Spider):
         navigates the miami-dade website inputs the date to and from
         I'm just getting todays date and subtracting a day before to get the date for that day.....
         so that is actually a day search
+
+        'ctl00$ContentPlaceHolder1$prec_date_from': f'{date.today().month}/{(date.today().day)-2}/{date.today().year}',
+        'ctl00$ContentPlaceHolder1$prec_date_to': f'{date.today().month}/{date.today().day}/{date.today().year}',
         '''
         official_record_payload = {
             '__EVENTTARGET': 'ctl00$ContentPlaceHolder1$btnNameSearch',
             'ctl00$ContentPlaceHolder1$hfTab': '',
             'ctl00$ContentPlaceHolder1$pfirst_party': '',
-            'ctl00$ContentPlaceHolder1$prec_date_from': f'{date.today().month}/{(date.today().day)-2}/{date.today().year}',
-            'ctl00$ContentPlaceHolder1$prec_date_to': f'{date.today().month}/{date.today().day}/{date.today().year}',
+            'ctl00$ContentPlaceHolder1$prec_date_from': '11/1/2022',
+            'ctl00$ContentPlaceHolder1$prec_date_to': '11/2/2022',
             'ctl00$ContentPlaceHolder1$pdoc_type': 'LIS',
             'ctl00$ContentPlaceHolder1$pcfn_year': '',
             'ctl00$ContentPlaceHolder1$pcfn_seq': '',
@@ -65,16 +69,27 @@ class MiamiSpider(scrapy.Spider):
         '''
         Providing the final form data payload
         '''
+
         yield FormRequest.from_response(response, formdata=official_record_payload, callback=self.step4)
+
+        # official_record_payload_pagination={
+        #     '__EVENTTARGET':f'ctl00$ContentPlaceHolder1$rptPaging$ctl0{}$ctl00',
+        # }
 
     def step4(self, response):
         # open_in_browser(response)
         '''
         Reading the response using pandas to extract the table
+
         '''
+        yield scrapy.FormRequest(url='https://onlineservices.miami-dadeclerk.com/officialrecords/PrinterFriendly.aspx', callback=self.printer_friendly)
+    
+    def printer_friendly(self,response):
+        # open_in_browser(response)
+
         try:
             dfs = pd.read_html(response.text)
-        
+
         except ValueError:
             return
 
@@ -86,67 +101,131 @@ class MiamiSpider(scrapy.Spider):
         if list(y):
             my_data = list(y)
 
-            '''
-            Changing this specific key value to a string so that it is easier to send vie http
-            '''
-            for i in my_data:
-                if i['Blk']:
-                    i['Blk'] = str(i['Blk'])
-                else:
-                    i['Blk'] = ''
-            # This is just a sample data we expect from the response
-            # sample_data = {
-            #     "Clerk's File No": "2022 R 831976",
-            #     "Doc Type": "LIS",
-            #     "Rec Date": "11/1/2022",
-            #     "Rec Book/Page": "33447 / 92",
-            #     "Plat Book/Page": "149/220",
-            #     'Blk': '5.0',
-            #     'Legal': "LOT 2A",
-            #     "Misc Ref": "2022-020673-CA-01 LISPCV",
-            #     "First Party (Code)  Second Party (Code)":
-            #     "HSBC BANK USA NA (D)  LARGAESPADA SILVIA",
-            # }
+        for case in my_data:
+            if type(case['Rec Book/Page']) is not str:
+                case['Rec Book/Page']=''
+            if type(case['Blk']) is not str:
+                case['Blk']=''
+            if type(case['Misc Ref']) is not str:
+                case['Misc Ref'] = ''
+            if type(case['Plat Book/Page']) is not str:
+                case['Plat Book/Page'] = ''
 
-            '''
-            Making a request to the django backend url providing the data as the form data
-            '''
-            for data in my_data:
-                yield requests.post('http://127.0.0.1:8000/available-cases', data=data)
+        
+            
+
+            
+        for case in my_data:
+            if len(case['Misc Ref'])>0:
+                case['Misc Ref'] = case['Misc Ref'].split(' ')[0]
+
+        for data in my_data:
+            yield requests.post('http://127.0.0.1:8000/available-cases',data=data)
+
+        
+            # print(data)
+
+        # next_btns_length = len(response.xpath(
+        #     '//*[@id="content"]/div[1]/div[9]/div/div/div[4]/div/div[2]/ul/li').getall())
+        
+
+        # print(next_btns_length)
+
+        # if next_btns_length > 0:
+
+        #     for i in range(1, next_btns_length):
+        #         yield FormRequest(
+        #             'https://onlineservices.miami-dadeclerk.com/officialrecords/StandardSearch.aspx',formdata={})
+                
+
+
+        # try:
+        #     dfs = pd.read_html(response.text)
+
+        # except ValueError:
+        #     return
+
+        # # self.logger.info(dfs[0])
+        # for x, df in enumerate(dfs):
+        #     # y = df.to_dict('tight')
+        #     y = df.T.to_dict().values()
+
+        # if list(y):
+        #     my_data = list(y)
+
+        # #     '''
+        # #     Changing this specific key value to a string so that it is easier to send vie http
+        # #     '''
+
+        #     for i in my_data:
+        #         if i['Blk']:
+        #             i['Blk'] = str(i['Blk'])
+        #         else:
+        #             i['Blk'] = ''
+
+        #     # This is just a sample data we expect from the response
+        #     # sample_data = {
+        #     #     "Clerk's File No": "2022 R 831976",
+        #     #     "Doc Type": "LIS",
+        #     #     "Rec Date": "11/1/2022",
+        #     #     "Rec Book/Page": "33447 / 92",
+        #     #     "Plat Book/Page": "149/220",
+        #     #     'Blk': '5.0',
+        #     #     'Legal': "LOT 2A",
+        #     #     "Misc Ref": "2022-020673-CA-01 LISPCV",
+        #     #     "First Party (Code)  Second Party (Code)":
+        #     #     "HSBC BANK USA NA (D)  LARGAESPADA SILVIA",
+        #     # }
+
+
+        #     # '''
+        #     # Making a request to the django backend url providing the data as the form data
+        #     # '''
+
+        #     for data in my_data:
+        #         yield scrapy.FormRequest('http://127.0.0.1:8000/available-cases', formdata=data)
+        #         # yield scrapy.request('http://127.0.0.1:8000/available-cases', data=data ,callback=self.step5, meta={'data':response})
+        #         # print(data)
+
+    # def step5(self, data):
+    #     response = data
+    #     try:
+    #         dfs = pd.read_html(response.text)
+        
+    #     except ValueError:
+    #         return
+
+    #     # self.logger.info(dfs[0])
+    #     for x, df in enumerate(dfs):
+    #         # y = df.to_dict('tight')
+    #         y = df.T.to_dict().values()
+
+    #     if list(y):
+    #         my_data = list(y)
+
+    #     #     '''
+    #     #     Changing this specific key value to a string so that it is easier to send vie http
+    #     #     '''
+    #         for i in my_data:
+    #             if i['Blk']:
+    #                 i['Blk'] = str(i['Blk'])
+    #             else:
+    #                 i['Blk'] = ''
+
+            
+    #         for data in my_data:
+    #             yield scrapy.FormRequest('http://127.0.0.1:8000/available-cases',formdata=data, callback=self.step5)
+    #             # yield scrapy.request('http://127.0.0.1:8000/available-cases', data=data ,callback=self.step5, meta={'data':response})
+    #             # print(data)
+    
+
+
 
     '''
-    in the code below I wanted to get the csv open it and that could have made the work easier but it is 
-    hard to get that so I opted to use pandas to read the tables
 
     use this code to run this script................
     ---------scrapy crawl miami to run it
+
     '''
 
 
-# code below is not to be used ..................
-    # def django_auth(self,response):
-    #     open_in_browser(response)
-
-    #     yield FormRequest(response,'http://127.0.0.1:8000/available-cases',)
-
-        # tbody = response.xpath('')
-
-        # final_data_payload = {
-        #     '__EVENTTARGET': 'ctl00$ContentPlaceHolder1$exportResultSearch'
-        # }
-        # yield FormRequest.from_response(response, formdata=final_data_payload, callback=self.step5)
-
-    # def step5(self, response):
-        # open_in_browser(response)
-        # open_in_browser(response)
-    # table = response.css('#tableSearchResults"')
-    # self.logger.info(response.body)
-
-    # table = response.xpath('/html/body/div/form/main/div[1]/div[9]/div/div/div[2]/table').get()
-
-    # path_1=response.url
-    # path = response.url.split('/')
-    # self.logger.info('Saving CSV %s',path)
-    # self.logger.info(path_1)
-    # with open(path,'wb') as f:
-    #     f.write

@@ -1,4 +1,6 @@
 env_scrapy/
 manipulate_data.py
 dummy_data.py
+page_manipulate.py
 __pycache__/
+printer_friendly.py

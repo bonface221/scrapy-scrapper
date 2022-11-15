@@ -112,6 +112,21 @@ class MiamiSpider(scrapy.Spider):
     def step5(self, response):
         # We now manipulate the data using pandas and send back to the server which is our django app
         # open_in_browser(response)
+        local_case_number = response.xpath(
+            '//*[@id="ctl00_ContentPlaceHolder1_lblCaseNoLocal"]/text()').get()
+
+        state_number = response.xpath(
+            '//*[@id="ctl00_ContentPlaceHolder1_lblCaseNoState_Parties"]/text()').get()
+
+        case_type=response.xpath(
+            '//*[@id="ctl00_ContentPlaceHolder1_lblCaseType_Parties"]/text()').get()
+
+        local_case_dict = {
+            'case_number': local_case_number,
+            'case_type':case_type,
+            'state_number':state_number
+        }
+        yield requests.post('http://127.0.0.1:8000/Advanced-search-results', data=local_case_dict)
 
         try:
             dfs2 = response.xpath('//*[@id="bodySearchCriteria"]/table').get()
@@ -143,11 +158,11 @@ class MiamiSpider(scrapy.Spider):
                 my_dict['Party Description'] = i[0]
                 my_dict['Party Name'] = i[1]
                 my_dict['Attorney Information'] = i[2]
+                my_dict['local_case_number'] = local_case_number
                 cleaned_data.append(my_dict)
 
             # print(cleaned_data)
 
-            
             for data in cleaned_data:
                 yield requests.post('http://127.0.0.1:8000/Advanced-search-results',data=data)
 
@@ -179,9 +194,5 @@ class MiamiSpider(scrapy.Spider):
             
             for data_dockets in dockets_list:
                 yield requests.post('http://127.0.0.1:8000/Advanced-search-results',data=data_dockets)
-            local_case_number = response.xpath('//*[@id="ctl00_ContentPlaceHolder1_lblCaseNoLocal"]/text()').get()
-            local_case_dict={
-                'case_number':local_case_number
-            }
-            yield requests.post('http://127.0.0.1:8000/Advanced-search-results',data=local_case_dict)
+            
             

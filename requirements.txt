@@ -10,6 +10,7 @@ constantly==15.1.0
 cryptography==38.0.3
 cssselect==1.2.0
 filelock==3.8.0
+html5lib==1.1
 hyperlink==21.0.0
 idna==3.4
 incremental==22.10.0
@@ -45,4 +46,5 @@ twisted-iocpsupport==1.0.2
 typing_extensions==4.4.0
 urllib3==1.26.12
 w3lib==2.0.1
+webencodings==0.5.1
 zope.interface==5.5.1
